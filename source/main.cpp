@@ -4,6 +4,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <opengl_loader.h>
+#include <wavefront_loader.h>
 
 LRESULT CALLBACK WindowCallback(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -170,3 +171,10 @@ LRESULT CALLBACK WindowCallback(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 }
 
+int main() {
+
+	Wavefront_Loader::Load();
+
+	return 0;
+
+}
