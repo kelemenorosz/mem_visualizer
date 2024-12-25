@@ -1,6 +1,10 @@
-
 SOURCE_DIR = source
 BUILD_DIR = build
+
+!IF EXIST("$(BUILD_DIR)")
+!	IF [del $(BUILD_DIR)] != 0
+!	ENDIF
+!ENDIF
 
 !IF !EXIST("$(BUILD_DIR)")
 !	IF [mkdir $(BUILD_DIR)] != 0
@@ -15,5 +19,5 @@ main.exe: $(BUILD_DIR)/*.obj
 	@echo LINKING DONE
 
 {$(SOURCE_DIR)}.cpp{$(BUILD_DIR)}.obj:
-	@cl /c /I$(SOURCE_DIR)/ $< /Fo$(BUILD_DIR)/
+	@cl /c /EHsc /I$(SOURCE_DIR)/ $< /Fo$(BUILD_DIR)/
 	@echo BUILDING DONE

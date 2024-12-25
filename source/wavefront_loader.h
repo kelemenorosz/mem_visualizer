@@ -1,7 +1,9 @@
 #pragma once
 
+#include <wavefront_object.h>
+
 namespace Wavefront_Loader {
 
-	void Load();
+	Wavefront_Object* Load(const std::string& path);
 
 }

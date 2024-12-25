@@ -1,10 +1,21 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <windows.h>
 #include <GL/glcorearb.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <glm/glm.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <opengl_loader.h>
 #include <wavefront_loader.h>
+#include <wavefront_object.h>
+#include <shader_loader.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
 
 LRESULT CALLBACK WindowCallback(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -46,7 +57,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   	pixel_format_desc.nVersion = 1;
   	pixel_format_desc.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
   	pixel_format_desc.iPixelType = PFD_TYPE_RGBA;
-  	pixel_format_desc.cColorBits = 24; // TODO: This might have to be 32. Although I have my doubts about it
+  	pixel_format_desc.cColorBits = 32 * 4; // TODO: This might have to be 32. Although I have my doubts about it
   	pixel_format_desc.cRedBits = 0;
   	pixel_format_desc.cRedShift = 0;
   	pixel_format_desc.cGreenBits = 0;
@@ -89,43 +100,111 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 	ShowWindow(window_handle, SW_SHOW);
 
-	// -- OpenGL test
+	// -- Create console
 
-	GLuint VertexArrayID;
-	gl->glGenVertexArrays(1, &VertexArrayID);
-	gl->glBindVertexArray(VertexArrayID);
+	AllocConsole();
+	FILE* dummy_file;
+	freopen_s(&dummy_file, "CONOUT$", "w", stdout);
+	std::cout.clear();
 
-	static const GLfloat g_vertex_buffer_data[] = {
-	   -1.0f, -1.0f, 0.0f,
-	   1.0f, -1.0f, 0.0f,
-	   0.0f,  1.0f, 0.0f,
-	};
+	// -- Load wavefront object
 
-	// This will identify our vertex buffer
-	GLuint vertexbuffer;
-	// Generate 1 buffer, put the resulting identifier in vertexbuffer
-	gl->glGenBuffers(1, &vertexbuffer);
-	// The following commands will talk about our 'vertexbuffer' buffer
-	gl->glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	// Give our vertices to OpenGL.
-	gl->glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	Wavefront_Object *cube_obj = Wavefront_Loader::Load("./mesh/cube.obj");	
 
-	// 1st attribute buffer : vertices
-	gl->glEnableVertexAttribArray(0);
-	gl->glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	gl->glVertexAttribPointer(
-	   0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-	   3,                  // size
-	   GL_FLOAT,           // type
-	   GL_FALSE,           // normalized?
-	   0,                  // stride
-	   (void*)0            // array buffer offset
-	);
-	// Draw the triangle !
-	gl->glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
-	gl->glDisableVertexAttribArray(0);
+	// -- Load shaders
 
-	SwapBuffers(window_dc);
+	GLuint program = Shader_Loader::Load(*gl, "vf", "./source/shaders/vertex.glsl", "./source/shaders/fragment.glsl");
+
+	// -- Use OpenGL program
+
+	gl->glUseProgram(program);
+
+	// -- Load texture file 
+
+	int texture_width, texture_height, texture_channels;
+	unsigned char* texture = stbi_load("./texture/quartz.png", &texture_width, &texture_height, &texture_channels, 0); 
+
+	if (texture == NULL) {
+		std::cout << "[STBI] stbi_load() failed." << std::endl;
+	}
+	else {
+		std::cout << "[TEXTURE] Texture width: " << texture_width << ", height: " << texture_height << ", channels: " << texture_channels << std::endl;
+	}
+
+	// -- Set texture buffer
+
+	GLuint texture_buffer;
+	gl->glGenTextures(1, &texture_buffer);
+	gl->glBindTexture(GL_TEXTURE_2D, texture_buffer);
+	gl->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture_width, texture_height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
+	gl->glGenerateMipmap(GL_TEXTURE_2D);
+
+	gl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	gl->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	gl->glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 10.0f);
+
+	GLint texture_location = gl->glGetUniformLocation(program, "texture_buffer");	
+
+	// -- Free texture
+
+	stbi_image_free(texture);
+
+	// -- Set index buffer
+	
+	GLuint index_buffer;
+	gl->glGenBuffers(1, &index_buffer);
+	gl->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+	gl->glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLint) * cube_obj->index_list.size(), &cube_obj->index_list[0], GL_STATIC_DRAW);
+
+	// -- Set vertex buffer
+	
+	GLuint vertex_buffer;
+	gl->glGenBuffers(1, &vertex_buffer);
+	gl->glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	gl->glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * cube_obj->vertex_list.size(), &cube_obj->vertex_list[0], GL_STATIC_DRAW);
+
+	// -- Set world/projection matrix
+
+	glm::mat4 model_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::normalize(glm::vec3(0, 1, 0)));
+	glm::mat4 world_matrix = glm::lookAtLH(glm::vec3(0.0f, 1.5f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	// glm::mat4 projection_matrix = glm::perspectiveFovLH(0.0174533f, 640.0f, 480.0f, 0.1f, 100.0f);
+	glm::mat4 projection_matrix = glm::perspectiveLH(glm::radians(90.0f), 4.0f / 3.0f, 0.1f, 100.0f);
+
+	glm::mat4 projection_world_matrix = projection_matrix * world_matrix * model_matrix; 
+
+	GLint matrix_location = gl->glGetUniformLocation(program, "MVP");
+
+	// -- Create framebuffer
+
+	GLuint frame_buffer;
+	gl->glGenFramebuffers(1, &frame_buffer);
+	gl->glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
+
+	GLuint fb_render_buffer;
+	gl->glGenTextures(1, &fb_render_buffer);
+	gl->glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fb_render_buffer);
+	gl->glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 8, GL_RGB, 640, 480, GL_TRUE);
+	gl->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, fb_render_buffer, 0);
+
+	GLuint fb_depth_stencil_buffer;
+	gl->glGenTextures(1, &fb_depth_stencil_buffer);
+	gl->glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fb_depth_stencil_buffer);
+	gl->glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 8, GL_DEPTH24_STENCIL8, 640, 480, GL_TRUE);
+	gl->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, fb_depth_stencil_buffer, 0);
+
+	if (gl->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "[FRAMEBUFFER] Framebuffer is not complete." << std::endl;
+	}
+	else {
+		std::cout << "[FRAMEBUFFER] Framebuffer is complete." << std::endl;
+	}
+
+	// gl->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// -- Setup
+
+	gl->glEnable(GL_DEPTH_TEST);
+	gl->glEnable(GL_MULTISAMPLE);
 
 	// -- Start message loop
 
@@ -135,7 +214,39 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 		GetMessage(&msg, NULL, 0, 0);
 		if (msg.hwnd == window_handle) {
-			
+
+			gl->glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
+
+			gl->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			// gl->glClear(GL_COLOR_BUFFER_BIT);
+
+			gl->glUniformMatrix4fv(matrix_location, 1, GL_FALSE, &projection_world_matrix[0][0]);
+
+			gl->glActiveTexture(GL_TEXTURE0);
+			gl->glBindTexture(GL_TEXTURE_2D, texture_buffer);
+			gl->glUniform1i(texture_location, 0);
+
+			gl->glEnableVertexAttribArray(0);
+			gl->glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+			gl->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+
+			gl->glEnableVertexAttribArray(1);
+			gl->glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+			gl->glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texture));
+
+			gl->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+			gl->glDrawElements(GL_TRIANGLES, cube_obj->index_list.size(), GL_UNSIGNED_INT, 0);
+
+			gl->glDisableVertexAttribArray(0);
+			gl->glDisableVertexAttribArray(1);
+
+
+			gl->glBindFramebuffer(GL_READ_FRAMEBUFFER, frame_buffer);
+			gl->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			gl->glBlitFramebuffer(0, 0, 640, 480, 0, 0, 640, 480, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			SwapBuffers(window_dc);
+
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		
@@ -149,6 +260,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	// -- Delete OpenGL context loader
 
 	OpenGLLoaderDelete(gl);
+
+	// -- Delete wavefront object
+
+	delete cube_obj;
 
 	return 0;
 
@@ -173,7 +288,7 @@ LRESULT CALLBACK WindowCallback(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 int main() {
 
-	Wavefront_Loader::Load();
+	Wavefront_Object *obj = Wavefront_Loader::Load("./mesh/cube.obj");
 
 	return 0;
 
