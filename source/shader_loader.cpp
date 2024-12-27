@@ -31,7 +31,6 @@ GLuint Shader_Loader::Load(const OpenGL_Loader& gl, const char* format, ...) {
 		file_string_stream << file_stream.rdbuf();
 		shader_string = file_string_stream.str();
 		const char* shader_string_ptr = shader_string.c_str();
-		GLuint shader;
 
 		if (*format == 'v') {
 

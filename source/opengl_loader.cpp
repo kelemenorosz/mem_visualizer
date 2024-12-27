@@ -3,72 +3,7 @@
 #include <opengl_loader.h>
 
 #define FormatLoad(func) \
-	this->Load(OpenGL_Loader::func, #func)
-
-BOOL m_is_initialized = FALSE;
-
-PFNGLGENVERTEXARRAYSPROC OpenGL_Loader::glGenVertexArrays;
-PFNGLBINDVERTEXARRAYPROC OpenGL_Loader::glBindVertexArray;
-PFNGLGENBUFFERSPROC OpenGL_Loader::glGenBuffers;
-PFNGLBINDBUFFERPROC OpenGL_Loader::glBindBuffer;
-PFNGLBUFFERDATAPROC OpenGL_Loader::glBufferData;
-PFNGLENABLEVERTEXATTRIBARRAYPROC OpenGL_Loader::glEnableVertexAttribArray;
-PFNGLVERTEXATTRIBPOINTERPROC OpenGL_Loader::glVertexAttribPointer;
-PFNGLDRAWARRAYSPROC OpenGL_Loader::glDrawArrays;
-PFNGLDRAWELEMENTSPROC OpenGL_Loader::glDrawElements;
-PFNGLDISABLEVERTEXATTRIBARRAYPROC OpenGL_Loader::glDisableVertexAttribArray;
-PFNGLCREATESHADERPROC OpenGL_Loader::glCreateShader;
-PFNGLSHADERSOURCEPROC OpenGL_Loader::glShaderSource;
-PFNGLCOMPILESHADERPROC OpenGL_Loader::glCompileShader;
-PFNGLGETSHADERIVPROC OpenGL_Loader::glGetShaderiv;
-PFNGLGETSHADERINFOLOGPROC OpenGL_Loader::glGetShaderInfoLog;
-PFNGLCREATEPROGRAMPROC OpenGL_Loader::glCreateProgram;
-PFNGLATTACHSHADERPROC OpenGL_Loader::glAttachShader;
-PFNGLLINKPROGRAMPROC OpenGL_Loader::glLinkProgram;
-PFNGLGETPROGRAMIVPROC OpenGL_Loader::glGetProgramiv;
-PFNGLGETPROGRAMINFOLOGPROC OpenGL_Loader::glGetProgramInfoLog;
-PFNGLDELETESHADERPROC OpenGL_Loader::glDeleteShader;
-PFNGLUSEPROGRAMPROC OpenGL_Loader::glUseProgram;
-PFNGLUNIFORMMATRIX4FVPROC OpenGL_Loader::glUniformMatrix4fv;
-PFNGLGETUNIFORMLOCATIONPROC OpenGL_Loader::glGetUniformLocation;
-PFNGLCLEARPROC OpenGL_Loader::glClear;
-PFNGLENABLEPROC OpenGL_Loader::glEnable;
-PFNGLGENTEXTURESPROC OpenGL_Loader::glGenTextures;
-PFNGLBINDTEXTUREPROC OpenGL_Loader::glBindTexture;
-PFNGLTEXIMAGE2DPROC OpenGL_Loader::glTexImage2D;
-PFNGLACTIVETEXTUREPROC OpenGL_Loader::glActiveTexture;
-PFNGLUNIFORM1IPROC OpenGL_Loader::glUniform1i;
-PFNGLTEXPARAMETERIPROC OpenGL_Loader::glTexParameteri;
-PFNGLGENERATEMIPMAPPROC OpenGL_Loader::glGenerateMipmap;
-PFNGLTEXPARAMETERFPROC OpenGL_Loader::glTexParameterf;
-PFNGLGENFRAMEBUFFERSPROC OpenGL_Loader::glGenFramebuffers;
-PFNGLCHECKFRAMEBUFFERSTATUSPROC OpenGL_Loader::glCheckFramebufferStatus;
-PFNGLBINDFRAMEBUFFERPROC OpenGL_Loader::glBindFramebuffer;
-PFNGLTEXIMAGE2DMULTISAMPLEPROC OpenGL_Loader::glTexImage2DMultisample;
-PFNGLFRAMEBUFFERTEXTURE2DPROC OpenGL_Loader::glFramebufferTexture2D;
-PFNGLBLITFRAMEBUFFERPROC OpenGL_Loader::glBlitFramebuffer;
-PFNGLDISABLEPROC OpenGL_Loader::glDisable;
-
-OpenGL_Loader* OpenGLLoaderInit() {
-
-	if (m_is_initialized == FALSE) {
-
-		OpenGL_Loader* loader = new OpenGL_Loader();
-		return loader;
-
-	}
-
-	return nullptr;
-
-}
-
-void OpenGLLoaderDelete(OpenGL_Loader* loader) {
-
-	delete loader;
-
-	return;
-
-}
+	this->Load(this->func, #func)
 
 OpenGL_Loader::OpenGL_Loader() {
 
@@ -113,6 +48,12 @@ OpenGL_Loader::OpenGL_Loader() {
 	FormatLoad(glFramebufferTexture2D);
 	FormatLoad(glBlitFramebuffer);
 	FormatLoad(glDisable);
+	FormatLoad(glFinish);
+	FormatLoad(glCullFace);
+	FormatLoad(glDrawElementsInstanced);
+	FormatLoad(glVertexAttribDivisor);
+	FormatLoad(glDepthFunc);
+	FormatLoad(glFrontFace);
 
 	return;
 

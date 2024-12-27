@@ -1,6 +1,7 @@
 #pragma once
 
 #include <wavefront_object.h>
+#include <string>
 
 namespace Wavefront_Loader {
 

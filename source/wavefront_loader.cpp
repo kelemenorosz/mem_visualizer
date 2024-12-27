@@ -29,58 +29,60 @@ Wavefront_Object* Wavefront_Loader::Load(const std::string& path) {
 
  	// -- Parse mesh file
 
+ 	char* strtok_context = nullptr;
  	char buffer[1024];
  	while (!wavefront.eof()) {
 
 	 	wavefront.getline(&buffer[0], 1024, '\n');
-	 	char* wavefront_type = strtok(buffer, " ");
+	 	char* wavefront_type = strtok_s(buffer, " ", &strtok_context);
 
 	 	if (wavefront_type != nullptr && !strcmp(wavefront_type, "f")) {
 
-	 		char* token = strtok(wavefront_type + strlen(wavefront_type) + 1, "/ ");
+	 		char* token = strtok_s(wavefront_type + strlen(wavefront_type) + 1, "/ ", &strtok_context);
 	 		
 	 		while (token != nullptr) {
 
 	 			// -- Vertex index
 
 				index_position.push_back(static_cast<GLint>(std::atoi(token) - 1));
-				token = strtok(NULL, "/ ");
+				token = strtok_s(NULL, "/ ", &strtok_context);
 
 				// -- Texture index
 
 				index_uv.push_back(static_cast<GLint>(std::atoi(token) - 1));
-				token = strtok(NULL, "/ ");
+				token = strtok_s(NULL, "/ ", &strtok_context);
 	 			
 				// -- Normal index
 
-	 			token = strtok(NULL, "/ ");
+	 			token = strtok_s(NULL, "/ ", &strtok_context);
+
 	 		}
 
 	 	}
 	 	else if (wavefront_type != nullptr && !strcmp(wavefront_type, "v")) {
 
-	 		char* token = strtok(wavefront_type + strlen(wavefront_type) + 1, " ");
+	 		char* token = strtok_s(wavefront_type + strlen(wavefront_type) + 1, " ", &strtok_context);
 	 		
 	 		while (token != nullptr) {
 
 	 			// -- Vertex
 
 				position.push_back(static_cast<GLfloat>(std::atof(token)));
-				token = strtok(NULL, "/ ");
+				token = strtok_s(NULL, "/ ", &strtok_context);
 
 	 		}
 
 	 	}
 	 	else if (wavefront_type != nullptr && !strcmp(wavefront_type, "vt")) {
 
-	 		char* token = strtok(wavefront_type + strlen(wavefront_type) + 1, " ");
+	 		char* token = strtok_s(wavefront_type + strlen(wavefront_type) + 1, " ", &strtok_context);
 	 		
 	 		while (token != nullptr) {
 
 	 			// -- UV
 
 				uv.push_back(static_cast<GLfloat>(std::atof(token)));
-				token = strtok(NULL, "/ ");
+				token = strtok_s(NULL, "/ ", &strtok_context);
 
 	 		}
 
@@ -88,29 +90,29 @@ Wavefront_Object* Wavefront_Loader::Load(const std::string& path) {
 
  	}
 
- 	std::cout << "[VERTEX POSITION] Vertex position: ";
-	for (const auto& i : position) {
-		std::cout << i << " ";
-	}
-	std::cout << std::endl;
+ 	// std::cout << "[VERTEX POSITION] Vertex position: ";
+	// for (const auto& i : position) {
+	// 	std::cout << i << " ";
+	// }
+	// std::cout << std::endl;
 
-	std::cout << "[VERTEX TEXTURE] Vertex texture: ";
-	for (const auto& i : uv) {
-		std::cout << i << " ";
-	}
-	std::cout << std::endl;
+	// std::cout << "[VERTEX TEXTURE] Vertex texture: ";
+	// for (const auto& i : uv) {
+	// 	std::cout << i << " ";
+	// }
+	// std::cout << std::endl;
 
-	std::cout << "[INDEX POSITION] Vertex position index: ";
-	for (const auto& i : index_position) {
-		std::cout << i << " ";
-	}
-	std::cout << std::endl;
+	// std::cout << "[INDEX POSITION] Vertex position index: ";
+	// for (const auto& i : index_position) {
+	// 	std::cout << i << " ";
+	// }
+	// std::cout << std::endl;
 
-	std::cout << "[INDEX TEXTURE] Vertex texture index: ";
-	for (const auto& i : index_uv) {
-		std::cout << i << " ";
-	}
-	std::cout << std::endl;
+	// std::cout << "[INDEX TEXTURE] Vertex texture index: ";
+	// for (const auto& i : index_uv) {
+	// 	std::cout << i << " ";
+	// }
+	// std::cout << std::endl;
 
 	// -- Build index buffer
 
@@ -143,25 +145,25 @@ Wavefront_Object* Wavefront_Loader::Load(const std::string& path) {
 				position[index_position[i] * 3 + 2], 
 				uv[index_uv[i] * 2], 
 				uv[index_uv[i] * 2 + 1]);
-			object->index_list.push_back(object->vertex_list.size() - 1);
+			object->index_list.push_back(static_cast<GLint>(object->vertex_list.size() - 1));
 		}
 
 	}
 
 	// -- Print
 
-	for (const auto& i : object->vertex_list) {
+	// for (const auto& i : object->vertex_list) {
 
-		std::cout << i.position[0] << " " << i.position[1] << " " << i.position[2] << " " << i.texture[0] << " " << i.texture[1] << " " << std::endl;
+	// 	std::cout << i.position[0] << " " << i.position[1] << " " << i.position[2] << " " << i.texture[0] << " " << i.texture[1] << " " << std::endl;
 
-	}
+	// }
 
-	for (const auto& i : object->index_list) {
+	// for (const auto& i : object->index_list) {
 
-		std::cout << i << " ";
+	// 	std::cout << i << " ";
 
-	}
-	std::cout << std::endl;
+	// }
+	// std::cout << std::endl;
 
  	// -- Return waveform object
 
