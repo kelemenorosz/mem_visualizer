@@ -25,6 +25,13 @@ void ApplicationThread(HINSTANCE hInstance);
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
 
+	// -- Allocate console for the process
+
+	AllocConsole();
+	FILE* dummy_file;
+	freopen_s(&dummy_file, "CONOUT$", "w", stdout);
+	std::cout.clear();
+
 	// -- Create applications
 
 	std::thread app(ApplicationThread, hInstance);
@@ -37,7 +44,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 void ApplicationThread(HINSTANCE hInstance) {
 
+	// -- Thread for an application
+
 	Application* application = new Application(hInstance);
+
+	// -- Set the renderer to be used
 
 	application->RegisterRenderer<Renderer>();
 
@@ -56,30 +67,3 @@ void ApplicationThread(HINSTANCE hInstance) {
 
 }
 
-int main() {
-
-	INT instance_row = 10;
-	INT instance_column = 10;
-	INT instance_count = instance_row * instance_column;
-	INT instance_buffer_size = instance_count * 3;
-
-	float* instance_data = new float[instance_buffer_size];
-	float* instance_ptr = instance_data;
-
-	std::cout << reinterpret_cast<unsigned long long>(instance_data) << std::endl;
-
-	for (int i = 0; i < instance_row; ++i) {
-		for (int j = 0; j < instance_column; ++j) {
-			instance_ptr[0] = static_cast<float>(i * 3);
-			instance_ptr[1] = 0.0f;
-			instance_ptr[2] = static_cast<float>(j * 3);
-			instance_ptr += 3;
-			std::cout << reinterpret_cast<unsigned long long>(instance_ptr) << std::endl;
-		}
-	}
-
-	delete[] instance_data;
-
-	return 0;
-
-}

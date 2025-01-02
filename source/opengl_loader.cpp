@@ -54,6 +54,7 @@ OpenGL_Loader::OpenGL_Loader() {
 	FormatLoad(glVertexAttribDivisor);
 	FormatLoad(glDepthFunc);
 	FormatLoad(glFrontFace);
+	FormatLoad(glViewport);
 
 	return;
 

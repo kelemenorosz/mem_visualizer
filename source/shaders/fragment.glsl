@@ -2,11 +2,11 @@
 
 out vec3 color;
 in vec2 texture_coordinates;
+in vec3 color_modifier;
 
-uniform sampler2D texture1;
+uniform sampler2D texture_buffer;
 
 void main(){
-  color = texture(texture1, texture_coordinates).rgb;
-  //color = vec3(1, 0, 0);
-
+  color = texture(texture_buffer, texture_coordinates).rgb;
+  color = mix(color, color_modifier, 0.2);
 }

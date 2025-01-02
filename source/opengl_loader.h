@@ -59,6 +59,7 @@ class OpenGL_Loader {
 		PFNGLVERTEXATTRIBDIVISORPROC glVertexAttribDivisor;
 		PFNGLDEPTHFUNCPROC glDepthFunc;
 		PFNGLFRONTFACEPROC glFrontFace;
+		PFNGLVIEWPORTPROC glViewport;
 
 	private:
 

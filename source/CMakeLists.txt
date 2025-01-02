@@ -8,6 +8,7 @@ add_executable(
 	shader_loader.cpp
 	wavefront_loader.cpp
 	wavefront_object.cpp
+	log_loader.cpp
 	)
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(main Opengl32.lib)

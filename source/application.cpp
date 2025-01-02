@@ -1,10 +1,12 @@
-
 #include <application.h>
 #include <windows.h>
+#include <iostream>
 #include <random>
+#include <chrono>
 #include <renderer.h>
+#include <gl/wglext.h>
 
-Application::Application(HINSTANCE hInstance) : state(aOpen) {
+Application::Application(HINSTANCE hInstance) : state(aOpen), temp_window_status(true) {
 
 	// -- RNG
 
@@ -32,15 +34,11 @@ Application::Application(HINSTANCE hInstance) : state(aOpen) {
 
 	RegisterClass(&window_class);
 
-	// -- Create window
+	// -- Create temporary window
 
-	window_handle = CreateWindow(window_class_name.c_str(), "Memory Visualizer", WS_OVERLAPPEDWINDOW, 0, 0, 640, 480, NULL, NULL, hInstance, this);
+	window_handle = CreateWindow(window_class_name.c_str(), "Temp Window", WS_OVERLAPPEDWINDOW, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
 
-	// -- Get the device context associated with the window
-
-	window_dc = GetDC(window_handle);
-
-	// -- Create Pixel Format Descriptor for the Device Context
+	// -- Create Pixel Format Descriptor for the temporary Device Context
 	
 	// Refer to the ChoosePixelFormat() documentation on how to set the PIXELFORMATDESCRIPTOR 
 	// https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-choosepixelformat
@@ -74,12 +72,125 @@ Application::Application(HINSTANCE hInstance) : state(aOpen) {
   	pixel_format_desc.dwVisibleMask = 0;
   	pixel_format_desc.dwDamageMask = 0;
 
-  	INT pixel_format_value = ChoosePixelFormat(window_dc, &pixel_format_desc);
-  	SetPixelFormat(window_dc, pixel_format_value, &pixel_format_desc);
+	// -- Get the device context associated with the temporary window
+
+	window_dc = GetDC(window_handle);
+
+	// -- Set the pixel format for the temporary window
+	{	
+		INT pixel_format_value = ChoosePixelFormat(window_dc, &pixel_format_desc);
+		SetPixelFormat(window_dc, pixel_format_value, &pixel_format_desc);
+	}	
+	// -- Create temporary OpenGL context
+
+	opengl_context_handle = wglCreateContext(window_dc);
+  	wglMakeCurrent(window_dc, opengl_context_handle);
+
+  	// -- Get WGL extension functions
+
+  	PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB;
+  	void* function_ptr = wglGetProcAddress("wglGetExtensionsStringARB");
+  	if ((function_ptr == (void*)0) || (function_ptr == (void*)1) || (function_ptr == (void*)2) || (function_ptr == (void*)3) || (function_ptr == (void*)-1)) {
+  		std::cout << "WGL extensions not found." << std::endl;
+  	}  
+  	else {
+  		std::cout << "WGL extensions found." << std::endl;
+  	}
+  	wglGetExtensionsStringARB = reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGARBPROC>(function_ptr);
+  	
+  	const char* extension_string = wglGetExtensionsStringARB(window_dc);
+  	char* extension_string_search = new char[strlen(extension_string) + 1];
+  	memcpy(extension_string_search, extension_string, strlen(extension_string) + 1);
+
+  	char* strtok_context;
+  	char* extension_name = strtok_s(extension_string_search, " ", &strtok_context);
+  	bool create_context_profile_available = false;
+  	bool choose_pixel_format_available = false;
+
+  	while (extension_name != nullptr) {
+  		if (strcmp(extension_name, "WGL_ARB_create_context_profile") == 0) create_context_profile_available = true;
+  		if (strcmp(extension_name, "WGL_ARB_pixel_format") == 0) choose_pixel_format_available = true;
+  		extension_name = strtok_s(NULL, " ", &strtok_context);
+  	}
+
+  	delete[] extension_string_search;
+
+	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
+	function_ptr = wglGetProcAddress("wglCreateContextAttribsARB");
+	if ((function_ptr == (void*)0) || (function_ptr == (void*)1) || (function_ptr == (void*)2) || (function_ptr == (void*)3) || (function_ptr == (void*)-1)) {
+  		std::cout << "WGL create context attribs not found." << std::endl;
+  	}  
+  	else {
+  		std::cout << "WGL create context attribs found." << std::endl;
+  	}
+  	wglCreateContextAttribsARB = reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(function_ptr);
+
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+	function_ptr = wglGetProcAddress("wglChoosePixelFormatARB");
+	if ((function_ptr == (void*)0) || (function_ptr == (void*)1) || (function_ptr == (void*)2) || (function_ptr == (void*)3) || (function_ptr == (void*)-1)) {
+  		std::cout << "WGL choose pixel format not found." << std::endl;
+  	}  
+  	else {
+  		std::cout << "WGL choose pixel format found." << std::endl;
+  	}
+  	wglChoosePixelFormatARB = reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(function_ptr);
+
+  	// -- Delete the temporary OpenGL context
+
+  	wglMakeCurrent(window_dc, NULL);
+  	wglDeleteContext(opengl_context_handle);
+
+	// -- Release the temporary window's device context
+
+	ReleaseDC(window_handle, window_dc);
+
+	// -- Destroy temporary window
+
+	DestroyWindow(window_handle);
+	temp_window_status = false;
+
+	// -- Create window
+
+	window_handle = CreateWindow(window_class_name.c_str(), "Memory Visualizer", WS_OVERLAPPEDWINDOW, 0, 0, 640, 480, NULL, NULL, hInstance, this);
+
+	// -- Get the device context associated with the window
+
+	window_dc = GetDC(window_handle);
+	
+	// -- Set the pixel format for the window
+
+	int pixel_attrib_list[] = {
+		WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+	    WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+	    WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+	    WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+	    WGL_COLOR_BITS_ARB, 32,
+	    WGL_DEPTH_BITS_ARB, 24,
+	    WGL_STENCIL_BITS_ARB, 8,
+	    0
+	};
+	int pixel_format;
+	unsigned int num_formats;
+	wglChoosePixelFormatARB(window_dc, pixel_attrib_list, NULL, 1, &pixel_format, &num_formats);
+	SetPixelFormat(window_dc, pixel_format, &pixel_format_desc);
+
+	// TODO: Use this if WGL extensions are not available
+  	// {	
+	// 	INT pixel_format_value = ChoosePixelFormat(window_dc, &pixel_format_desc);
+	// 	SetPixelFormat(window_dc, pixel_format_value, &pixel_format_desc);
+	// }	
 
   	// -- Create OpenGL context
 
-  	HGLRC opengl_context_handle = wglCreateContext(window_dc);
+	int context_attrib_list[] = {
+		WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+		WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+		0
+	};
+	opengl_context_handle = wglCreateContextAttribsARB(window_dc, 0, context_attrib_list);
+
+	// TODO: Use this if WGL extensions are not available
+  	// opengl_context_handle = wglCreateContext(window_dc);
 
   	// -- Set OpenGL context as current
   	// TODO: check for return value
@@ -93,6 +204,11 @@ Application::Application(HINSTANCE hInstance) : state(aOpen) {
 	// -- Show window
 
 	ShowWindow(window_handle, SW_SHOW);
+
+	// -- Set t0
+
+	t0 = std::chrono::high_resolution_clock::now();
+	elapsed_time = 0.0f;
 
 	return;
 
@@ -139,11 +255,22 @@ LRESULT CALLBACK Application::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPA
 	switch(msg) {
 
 		case WM_DESTROY:
-			DestroyWindow(hWnd);
-			PostQuitMessage(0);
+			if (temp_window_status == false) {
+				PostQuitMessage(0);
+			}
 			break;
 		case WM_PAINT:
 			OnRender();
+			OnUpdate();
+			break;
+		case WM_SIZING:
+			OnResizing(wParam, lParam);
+			break;
+		case WM_SIZE:
+			OnResize(wParam, lParam);
+			break;
+		case WM_CHAR:
+			OnChar(wParam, lParam);
 			break;
 		case WM_MOUSEWHEEL:
 			OnMouseWheel(wParam, lParam);
@@ -184,6 +311,24 @@ void Application::OnRender() {
 
 }
 
+void Application::OnUpdate() {
+
+	if (state == aRunning) {
+		
+		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<__int64, std::nano> delta = t1 - t0;
+		t0 = t1;
+
+		elapsed_time = delta.count() * 1e-9;
+
+		renderer->OnUpdate(elapsed_time);
+
+	}
+
+	return;
+
+}
+
 void Application::OnMouseButtonLeftMove(WORD x1, WORD x2, WORD y1, WORD y2) {
 
 	if (state == aRunning) {
@@ -203,6 +348,45 @@ void Application::OnMouseWheel(WPARAM wParam, LPARAM lParam) {
 		FLOAT delta = ((SHORT) HIWORD(wParam)) / (FLOAT) WHEEL_DELTA;
 		renderer->OnMouseWheel(delta);
 
+	}
+
+	return;
+
+}
+
+void Application::OnResizing(WPARAM wParam, LPARAM lParam) {
+
+	RECT* window_rectangle = reinterpret_cast<RECT*>(lParam);
+	std::cout << "[WINDOW_RESIZING] left: " << window_rectangle->left << ", right: " << window_rectangle->right << ", top: " << window_rectangle->top << ", bottom: " << window_rectangle->bottom << std::endl;
+
+	return;
+
+}
+
+void Application::OnResize(WPARAM wParam, LPARAM lParam) {
+
+	UINT16 width = static_cast<UINT16>(lParam);
+	UINT16 height = static_cast<UINT16>(lParam >> 0x10);
+
+	std::cout << "[WINDOW_RESIZE] width: " << width	<< ", height: " << height << std::endl;
+
+	if (state == aRunning) {
+		renderer->OnResize(width, height);
+	}
+
+	return;
+
+}
+
+void Application::OnChar(WPARAM wParam, LPARAM lParam) {
+
+	UINT8 scancode = (UINT8)(lParam >> 16);
+	UINT8 isRepeat = (UINT8)(lParam >> 24);
+
+	std::cout << "[KEYPRESS] " << static_cast<INT>(scancode) << " " << static_cast<INT>(isRepeat) << std::endl;
+
+	if (state == aRunning) {
+		renderer->OnKeyPress(scancode, isRepeat);
 	}
 
 	return;
